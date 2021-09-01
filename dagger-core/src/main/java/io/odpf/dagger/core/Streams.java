@@ -127,7 +127,7 @@ public class Streams implements TelemetryPublisher {
 
         // https://ci.apache.org/projects/flink/flink-docs-stable/dev/event_timestamps_watermarks.html#timestamps-per-kafka-partition
         if (enablePerPartitionWatermark) {
-            Duration maxOutOfOrderness = Duration.ofSeconds(20);
+            Duration maxOutOfOrderness = Duration.ofSeconds(200000);
             DataTypes.TIMESTAMP(3).bridgedTo(Timestamp.class);
 
             fc.assignTimestampsAndWatermarks(WatermarkStrategy.

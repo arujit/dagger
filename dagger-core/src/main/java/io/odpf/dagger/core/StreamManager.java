@@ -105,13 +105,22 @@ public class StreamManager {
     public StreamManager registerSourceWithPreProcessors() {
         String rowTimeAttributeName = configuration.getString(FLINK_ROWTIME_ATTRIBUTE_NAME_KEY, FLINK_ROWTIME_ATTRIBUTE_NAME_DEFAULT);
 //        Boolean enablePerPartitionWatermark = configuration.getBoolean(FLINK_WATERMARK_PER_PARTITION_ENABLE_KEY, FLINK_WATERMARK_PER_PARTITION_ENABLE_DEFAULT);
-//        Long watermarkDelay = configuration.getLong(FLINK_WATERMARK_DELAY_MS_KEY, FLINK_WATERMARK_DELAY_MS_DEFAULT);
+        Long watermarkDelay = configuration.getLong(FLINK_WATERMARK_DELAY_MS_KEY, FLINK_WATERMARK_DELAY_MS_DEFAULT);
         kafkaStreams = getKafkaStreams();
         kafkaStreams.notifySubscriber(telemetryExporter);
         PreProcessorConfig preProcessorConfig = PreProcessorFactory.parseConfig(configuration);
         kafkaStreams.getStreams().forEach((tableName, kafkaConsumer) -> {
             DataStream<Row> kafkaStream = executionEnvironment.addSource(kafkaConsumer);
-            StreamInfo streamInfo = new StreamInfo(kafkaStream, TableSchema.fromTypeInfo(kafkaStream.getType()).getFieldNames());
+            SingleOutputStreamOperator<Row> rowSingleOutputStreamOperator = kafkaStream.assignTimestampsAndWatermarks(new BoundedOutOfOrdernessTimestampExtractor<Row>(org.apache.flink.streaming.api.windowing.time.Time.of(watermarkDelay, TimeUnit.MILLISECONDS)) {
+                @Override
+                public long extractTimestamp(Row element) {
+                    int index = element.getArity() - 1;
+                    return ((Timestamp) element.getField(index)).getTime();
+                }
+            });
+
+
+            StreamInfo streamInfo = new StreamInfo(rowSingleOutputStreamOperator, TableSchema.fromTypeInfo(kafkaStream.getType()).getFieldNames());
             streamInfo = addPreProcessor(streamInfo, tableName, preProcessorConfig);
 //            CustomStreamingTableSource tableSource = new CustomStreamingTableSource(
 //                    rowTimeAttributeName,
@@ -136,7 +145,7 @@ public class StreamManager {
 //            Table table = tableEnvironment.fromDataStream(streamInfo.getDataStream(), $("rowtime").rowtime());
             Table table = tableEnvironment.fromDataStream(streamInfo.getDataStream(), $("booking_log"), $("customer_profile"), $("driver_profile"), $("event_timestamp"), $("s2id_14"), $("rowtime").rowtime());
             tableEnvironment.createTemporaryView("table1", table);
-//            tableEnvironment.registerTable("table1", table);
+
         });
         return this;
     }

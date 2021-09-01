@@ -135,7 +135,8 @@ public class StreamManager {
 //            Table table = tableEnvironment.fromDataStream(streamInfo.getDataStream());
 //            Table table = tableEnvironment.fromDataStream(streamInfo.getDataStream(), $("rowtime").rowtime());
             Table table = tableEnvironment.fromDataStream(streamInfo.getDataStream(), $("booking_log"), $("customer_profile"), $("driver_profile"), $("event_timestamp"), $("s2id_14"), $("rowtime").rowtime());
-            tableEnvironment.createTemporaryView("table1", streamInfo.getDataStream());
+            tableEnvironment.createTemporaryView("table1", table);
+//            tableEnvironment.registerTable("table1", table);
         });
         return this;
     }

@@ -1,0 +1,151 @@
+buildscript {
+    repositories {
+        mavenLocal()
+        mavenCentral()
+        maven {
+            url "https://plugins.gradle.org/m2/"
+        }
+
+        dependencies {
+            classpath 'com.google.protobuf:protobuf-gradle-plugin:0.8.13'
+        }
+    }
+
+}
+plugins {
+    id 'maven-publish'
+    id 'com.google.protobuf' version '0.8.13'
+    id "java-test-fixtures"
+}
+
+def flinkVersion = System.getenv('flinkVersion') ?: '1.13.0'
+version = rootProject.file('version.txt').text.trim()
+
+description = """common dependencies for dagger"""
+
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
+tasks.withType(JavaCompile) {
+    options.encoding = 'UTF-8'
+}
+
+configurations {
+    minimalCommonJar
+    dependenciesCommonJar
+
+    minimalCommonJar.extendsFrom runtime
+    compileOnly.extendsFrom minimalCommonJar
+    compileOnly.extendsFrom dependenciesCommonJar
+    testCompile.extendsFrom compileOnly
+}
+
+sourceSets {
+    main.compileClasspath += configurations.minimalCommonJar
+    main.compileClasspath += configurations.dependenciesCommonJar
+    main.runtimeClasspath += configurations.minimalCommonJar
+    main.runtimeClasspath += configurations.dependenciesCommonJar
+
+    test.compileClasspath += configurations.minimalCommonJar
+    test.compileClasspath += configurations.dependenciesCommonJar
+    test.runtimeClasspath += configurations.minimalCommonJar
+    test.runtimeClasspath += configurations.dependenciesCommonJar
+}
+
+dependencies {
+    compileOnly 'org.apache.flink:flink-streaming-java_2.11:' + flinkVersion
+    compileOnly group: 'org.apache.flink', name: 'flink-table-common', version: flinkVersion
+    compileOnly group: 'org.apache.flink', name: 'flink-table', version: flinkVersion
+    compileOnly group: 'org.apache.flink', name: 'flink-table-api-java-bridge_2.11', version: flinkVersion
+    
+    dependenciesCommonJar 'com.gojek:stencil:2.0.15'
+    dependenciesCommonJar 'org.apache.flink:flink-metrics-dropwizard:' + flinkVersion
+
+    testImplementation 'junit:junit:4.12'
+    testImplementation 'org.jmockit:jmockit:1.25'
+    testImplementation 'org.mockito:mockito-core:2.25.1'
+    testImplementation 'io.grpc:grpc-protobuf:1.18.0'
+    testImplementation 'io.grpc:grpc-api:1.37.0'
+    testImplementation 'io.grpc:grpc-stub:1.18.0'
+    testImplementation 'com.google.protobuf:protobuf-java:3.5.0'
+    testImplementation 'com.google.protobuf:protobuf-java-util:3.5.0'
+    testImplementation 'org.grpcmock:grpcmock-junit5:0.5.0'
+}
+
+test {
+    finalizedBy jacocoTestReport
+    testLogging {
+        events "passed", "skipped", "failed"
+    }
+}
+
+jacocoTestReport {
+    reports {
+        xml.enabled false
+        html.enabled true
+        csv.enabled false
+    }
+    finalizedBy jacocoTestCoverageVerification
+}
+
+jacocoTestCoverageVerification {
+    violationRules {
+        rule {
+            limit {
+                minimum = 0.7
+            }
+        }
+    }
+}
+
+jar {
+    zip64 true
+    from {
+        (configurations.runtime).collect {
+            it.isDirectory() ? it : zipTree(it)
+        }
+    }
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+        }
+    }
+
+    repositories {
+        maven {
+            name = "GitHubPackages"
+            url = "https://maven.pkg.github.com/odpf/dagger"
+            credentials {
+                username = System.getenv("GITHUB_ACTOR")
+                password = System.getenv("GITHUB_TOKEN")
+            }
+        }
+    }
+}
+
+protobuf {
+    generatedFilesBaseDir = "$projectDir/src/generated"
+    protoc {
+        artifact = "com.google.protobuf:protoc:3.1.0"
+    }
+    plugins {
+        grpc {
+            artifact = "io.grpc:protoc-gen-grpc-java:1.19.0"
+        }
+    }
+    generateProtoTasks {
+        all()*.plugins {
+            grpc {}
+        }
+    }
+}
+
+idea {
+    module {
+        testSourceDirs += file("$projectDir/src/generated/test/java")
+        testSourceDirs += project.sourceSets.test.java.srcDirs
+    }
+}

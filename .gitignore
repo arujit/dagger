@@ -1,0 +1,15 @@
+.idea
+.gradle
+*.iml
+build
+out
+classes
+generated
+.pairs
+target/
+.classpath
+.project
+bin
+.settings
+.gradletasknamecache
+.DS_Store

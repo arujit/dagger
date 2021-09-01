@@ -1,0 +1,25 @@
+
+
+subprojects {
+    ext {
+        def flinkVersion = System.getenv('flinkVersion') ?: '1.13.0'
+    }
+    repositories {
+        mavenLocal()
+        mavenCentral()
+        jcenter()
+        maven { url "https://repository.apache.org/content/repositories/snapshots/" }
+    }
+
+    apply plugin: 'java'
+    apply plugin: 'jacoco'
+    apply plugin: 'idea'
+    apply plugin: 'checkstyle'
+
+    group 'io.odpf'
+
+    checkstyle {
+        toolVersion '7.6.1'
+        configFile rootProject.file("config/checkstyle/checkstyle.xml")
+    }
+}

@@ -1,0 +1,6 @@
+rootProject.name = 'dagger'
+
+include 'dagger-core'
+include 'dagger-common'
+include 'dagger-functions'
+include 'dagger-tests'
